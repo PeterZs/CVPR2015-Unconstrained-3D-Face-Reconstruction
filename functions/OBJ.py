@@ -6,6 +6,7 @@ Created on Wed Jan 06 13:05:35 2016
 """
 
 #deal with obj file
+import numpy as np
 
 class obj:
     def __init__(self, filePath):
@@ -40,15 +41,40 @@ class obj:
                     lineTemp = map(int, lineTemp.split('/'))
                     for j in range(k):
                         if j == 0:
-                            faceTemp = self.v[lineTemp[0] - 1]
-                            self.face.append(faceTemp)
+                            faceTemp.append(lineTemp[0] - 1)                           
                         if j == 1:
-                            vtfaceTemp = self.vt[lineTemp[1] - 1]
-                            self.vtface.append(vtfaceTemp)
+                            vtfaceTemp.append(lineTemp[1] - 1)                            
                         if j == 2:
-                            vnfaceTemp = self.vn[lineTemp[2] - 1]
-                            self.vnface.append(vnfaceTemp)
-        
-        #def vnCal(self):
+                            vnfaceTemp.append(lineTemp[2] - 1)                            
+                self.face.append(faceTemp)
+                if k == 2:
+                    self.vtface.append(vtfaceTemp)
+                else:
+                    self.vtface.append(vtfaceTemp)
+                    self.vnface.append(vnfaceTemp)
+        if self.vn == []:
+            self.vnCal()
+                
+    #cal the vn
+    def vnCal(self):
+        vArray = np.array(self.v)
+        normsTemp = []#save the norms value
+        for i in range(len(self.v)):
+            normsTemp.append([])
+        for face in self.face:
+            v1 = vArray[face[0]]
+            v2 = vArray[face[1]]
+            v3 = vArray[face[2]]
+            tempNorm = np.cross((v1 - v2), (v1 - v3))
+            normsTemp[face[0]].append(tempNorm)
+            normsTemp[face[1]].append(tempNorm)
+            normsTemp[face[2]].append(tempNorm)
+        #import pdb
+        #pdb.set_trace()
+        for norm in normsTemp:
+            norm = map(np.mean, np.rot90(norm))
+            self.vn.append(norm)
+                
             
+                
                             
