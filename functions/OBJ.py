@@ -66,11 +66,11 @@ class obj:
             v2 = vArray[face[1]]
             v3 = vArray[face[2]]
             tempNorm = np.cross((v1 - v2), (v1 - v3))
+            tempNorm = tempNorm / (np.sum(tempNorm * tempNorm)**0.5)
             normsTemp[face[0]].append(tempNorm)
             normsTemp[face[1]].append(tempNorm)
             normsTemp[face[2]].append(tempNorm)
-        #import pdb
-        #pdb.set_trace()
+        
         for norm in normsTemp:
             norm = map(np.mean, np.rot90(norm))
             self.vn.append(norm)
