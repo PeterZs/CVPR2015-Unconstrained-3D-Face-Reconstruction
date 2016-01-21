@@ -34,4 +34,7 @@ def calL(obj):
                         L[3*face[i]+1, 3*face[j]+1] = val
                         L[3*face[i]+2, 3*face[j]+2] = val
     return L
+    
+def calH(obj):
+     
         
