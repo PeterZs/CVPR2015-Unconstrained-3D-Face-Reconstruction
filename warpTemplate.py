@@ -4,8 +4,43 @@ Created on Wed Jan 06 21:09:02 2016
 
 @author: 开圣
 """
+import urllib
+from json import *
+import os
 import numpy as np
 from PIL import Image,ImageDraw
+from OBJ import obj
+#face++ api
+from facepp import API,File
+API_KEY = "b068f469bf92bbf202a2a351093f81c3"
+API_SECRET = "-OmBhNOBMEhWYpk6jll-0n4zNEReAzrm"
+api = API(API_KEY,API_SECRET)
+
+def landmarkFromFacepp(imgPath):
+    infor = api.detection.detect(img = File(imgPath))
+    try:
+        faceID = infor[u'face'][0][u'face_id']
+    except:
+        print ("no face detected")
+    req_url = "http://api.faceplusplus.com/detection/landmark"
+    params = urllib.urlencode({'api_secret':API_SECRET,'api_key':API_KEY,'face_id':faceID,'type':'83p'})
+    req_rst = urllib.urlopen(req_url,params).read() # landmark data
+    req_rst_dict = JSONDecoder().decode(req_rst)
+    if len(req_rst_dict['result']) == 1:
+        landmarkDict = req_rst_dict['result'][0]['landmark']
+    imgInfo = Image.open(imgPath)
+    xSize = imgInfo.size[0]
+    ySize = imgInfo.size[1]
+    landmarkList = sorted(list(landmarkDict))
+    landmark_array = []
+    for key in landmarkList:
+        temp_xy = [landmarkDict[key]['x'],landmarkDict[key]['y']]
+        landmark_array.append(np.array(temp_xy))
+    landmarkArray = np.array(landmark_array)
+    landmarkArray[:,0] = landmarkArray[:,0] * xSize / 100
+    landmarkArray[:,1] = landmarkArray[:,1] * ySize / 100
+    return landmarkArray
+
 #calculate cot for L
 def calCot(vec1, vec2):
     cos = vec1.dot(vec2)/(np.sqrt(vec1.dot(vec1))*np.sqrt(vec2.dot(vec2)))
@@ -44,8 +79,8 @@ def calP(landmark2D, landmark3D):
     #pdb.set_trace()
     m1 = np.linalg.lstsq(A, b1)[0]
     m2 = np.linalg.lstsq(A, b2)[0]
-    M = np.c_[m1, m2, np.array([0,0,0,1])]
-    return M.T
+    P = np.c_[m1, m2, np.array([0,0,0,1])]
+    return P.T
 
     
 def drawL(imgPath, landmark):
@@ -64,5 +99,55 @@ def loadLandmark(fp):
     landmarkIndex = []
     for line in text:
         line = line.split()[0]
-        landmarkIndex.append(int(float(line)))
+        landmarkIndex.append(int(float(line))-1)
     return landmarkIndex
+
+   
+if __name__ == '__main__':
+    rootDir = r'D:\WinPython-64bit-2.7.10.1\mine\Unconstrained 3D Face Reconstruction\data'
+    imgSet = os.path.join(rootDir, 'imgSet')
+    landmarkPath = os.path.join(rootDir, 'landmark.txt')
+    templatePath = os.path.join(rootDir, 'template.obj')
+    template = obj(templatePath)
+    template.load()
+    L = calL(template)
+    vertex = np.array(template.v)
+    vCount = len(vertex)
+    X0 = vertex.reshape(3*vCount)#3p vector
+    landmarkIndex = loadLandmark(landmarkPath)
+    landmark3D = vertex[landmarkIndex]
+    D = np.zeros((3*vCount, 3*vCount))#selection matrix
+    for index in landmarkIndex:
+        for i in range(3):
+            D[3*index+i, 3*index+i] = 1
+    imgList = os.listdir(imgSet)
+    Pset = []
+    Wset = []
+    for im in imgList:
+        imgPath = os.path.join(imgSet, im)
+        landmark2D = landmarkFromFacepp(imgPath)
+        P = calP(landmark2D, landmark3D)
+        W = np.zeros((3*vCount,1))
+        Pplus = np.zeros((3*vCount, 3*vCount))
+        count = 0
+        for index in landmarkIndex:
+            Pplus[3*index:3*index+2, 3*index:3*index+3] = P[0:2,0:3]
+            W[3*index] = landmark2D[count, 0]
+            W[3*index+1] = landmark2D[count, 1]
+        Pset.append(Pplus)
+        Wset.append(W)
+    sumL = L.dot(L)
+    sumR = L.dot(L)
+    for i in range(len(Pset)):
+        sumL = sumL + D.dot(Pset[i].T).dot(Pset[i]).dot(D)
+        sumR = sumR + Pset[i].T.dot(Wset[i])
+    XX = np.linalg.solve(sumL, sumR)
+    
+
+        
+            
+        
+    
+    
+    
+    
