@@ -127,13 +127,13 @@ if __name__ == '__main__':
         imgPath = os.path.join(imgSet, im)
         landmark2D = landmarkFromFacepp(imgPath)
         P = calP(landmark2D, landmark3D)
-        W = np.zeros((3*vCount,1))
-        Pplus = np.zeros((3*vCount, 3*vCount))
+        W = np.zeros((2*vCount,1))
+        Pplus = np.zeros((2*vCount, 3*vCount))
         count = 0
         for index in landmarkIndex:
-            Pplus[3*index:3*index+2, 3*index:3*index+3] = P[0:2,0:3]
-            W[3*index] = landmark2D[count, 0]
-            W[3*index+1] = landmark2D[count, 1]
+            Pplus[2*index:2*index+2, 2*index:2*index+3] = P[0:2,0:3]
+            W[2*index] = landmark2D[count, 0] - P[0, 3]
+            W[2*index+1] = landmark2D[count, 1] - P[1, 3]
         Pset.append(Pplus)
         Wset.append(W)
     sumL = L.dot(L)
