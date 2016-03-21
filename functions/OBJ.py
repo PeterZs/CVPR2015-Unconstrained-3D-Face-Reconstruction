@@ -52,12 +52,14 @@ class obj:
                 else:
                     self.vtface.append(vtfaceTemp)
                     self.vnface.append(vnfaceTemp)
+        self.v = np.array(self.v)
         if self.vn == []:
             self.vnCal()
+        
                 
     #cal the vn
     def vnCal(self):
-        vArray = np.array(self.v)
+        vArray = self.v
         normsTemp = []#save the norms value
         for i in range(len(self.v)):
             normsTemp.append([])
@@ -74,7 +76,12 @@ class obj:
         for norm in normsTemp:
             norm = map(np.mean, np.rot90(norm))
             self.vn.append(norm)
-                
             
-                
-                            
+    #save as obj file
+    def save(self, fp):
+        fout = open(fp, 'w')
+        for vTemp in self.v:
+            fout.write('v {} {} {}\n'.format(str(vTemp[0]),str(vTemp[1]),str(vTemp[2])))
+        for fTemp in self.face:
+            fout.write('f {} {} {}\n'.format(str(fTemp[0]+1),str(fTemp[1]+1),str(fTemp[2]+1)))
+        fout.close()

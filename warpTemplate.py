@@ -10,6 +10,8 @@ import os
 import numpy as np
 from PIL import Image,ImageDraw
 from OBJ import obj
+from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import spsolve
 #face++ api
 from facepp import API,File
 API_KEY = "b068f469bf92bbf202a2a351093f81c3"
@@ -48,6 +50,8 @@ def calCot(vec1, vec2):
     cot = cos/sin
     return cot
 
+
+
 # calculate L
 def calL(obj):
     ptsNum = len(obj.v)
@@ -64,10 +68,16 @@ def calL(obj):
                         L[3*face[i]+1, 3*face[j]+1] = val
                         L[3*face[i]+2, 3*face[j]+2] = val
                     else:
-                        val = 0.5 * (calCot(p[k]-p[i], p[k]-p[i]) + L[3*face[i], 3*face[j]])
+                        val = 0.5 * (calCot(p[k]-p[i], p[k]-p[j]) + L[3*face[i], 3*face[j]])
                         L[3*face[i], 3*face[j]] = val
                         L[3*face[i]+1, 3*face[j]+1] = val
                         L[3*face[i]+2, 3*face[j]+2] = val
+    for i in range(ptsNum):
+        tempSum = sum(L[3*i,:])
+        L[3*i, 3*i] = -tempSum
+        L[3*i+1, 3*i+1] = -tempSum
+        L[3*i+2, 3*i+2] = -tempSum
+    L = csr_matrix(L)        
     return L
 
 # calculate P (weakly perspective)    
@@ -82,7 +92,15 @@ def calP(landmark2D, landmark3D):
     P = np.c_[m1, m2, np.array([0,0,0,1])]
     return P.T
 
-    
+#calculate mean curvature
+#def calH(obj, L):
+#    count = len(obj.v)
+#    valueH = np.zeros((count, 1))
+#    for face in obj.face:
+#       p = map(np.array, map(lambda x:obj.v[x], face))
+
+
+# draw landmark     
 def drawL(imgPath, landmark):
     img = Image.open(imgPath)
     imDraw = ImageDraw.Draw(img)
@@ -93,6 +111,9 @@ def drawL(imgPath, landmark):
         imDraw.ellipse((x - radius,y -radius,x + radius, y + radius), fill = 'red', outline = 'red')
     return img
 
+#3p vector turn to obj file
+
+
 #load landmark index    
 def loadLandmark(fp):
     text = open(fp, 'r')    
@@ -101,6 +122,7 @@ def loadLandmark(fp):
         line = line.split()[0]
         landmarkIndex.append(int(float(line))-1)
     return landmarkIndex
+    
 
    
 if __name__ == '__main__':
@@ -108,18 +130,20 @@ if __name__ == '__main__':
     imgSet = os.path.join(rootDir, 'imgSet')
     landmarkPath = os.path.join(rootDir, 'landmark.txt')
     templatePath = os.path.join(rootDir, 'template.obj')
+    tempPath = os.path.join(rootDir, 'tempResult')
     template = obj(templatePath)
     template.load()
     L = calL(template)
     vertex = np.array(template.v)
     vCount = len(vertex)
-    X0 = vertex.reshape(3*vCount)#3p vector
+    X0 = vertex.reshape((3*vCount,1))#3p vector
     landmarkIndex = loadLandmark(landmarkPath)
     landmark3D = vertex[landmarkIndex]
     D = np.zeros((3*vCount, 3*vCount))#selection matrix
     for index in landmarkIndex:
         for i in range(3):
             D[3*index+i, 3*index+i] = 1
+    D = csr_matrix(D)
     imgList = os.listdir(imgSet)
     Pset = []
     Wset = []
@@ -134,14 +158,20 @@ if __name__ == '__main__':
             Pplus[2*index:2*index+2, 2*index:2*index+3] = P[0:2,0:3]
             W[2*index] = landmark2D[count, 0] - P[0, 3]
             W[2*index+1] = landmark2D[count, 1] - P[1, 3]
+            count = count + 1
+        Pplus = csr_matrix(Pplus)
+        W = csr_matrix(W)
         Pset.append(Pplus)
         Wset.append(W)
     sumL = L.dot(L)
-    sumR = L.dot(L)
+    sumR = sumL.dot(X0)
+
     for i in range(len(Pset)):
-        sumL = sumL + D.dot(Pset[i].T).dot(Pset[i]).dot(D)
-        sumR = sumR + Pset[i].T.dot(Wset[i])
-    XX = np.linalg.solve(sumL, sumR)
+        #sumL = sumL + D.dot(Pset[i].T).dot(Pset[i]).dot(D)
+        tempL = Pset[i].dot(D)
+        sumL = sumL + tempL.T.dot(tempL)
+        sumR = sumR + (Pset[i].T).dot(Wset[i])
+    XX = spsolve(sumL, sumR)
     
 
         
