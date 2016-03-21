@@ -80,7 +80,8 @@ class obj:
     #save as obj file
     def save(self, fp):
         fout = open(fp, 'w')
-        for vTemp in self.v:
+        vList = list(self.v)
+        for vTemp in vList:
             fout.write('v {} {} {}\n'.format(str(vTemp[0]),str(vTemp[1]),str(vTemp[2])))
         for fTemp in self.face:
             fout.write('f {} {} {}\n'.format(str(fTemp[0]+1),str(fTemp[1]+1),str(fTemp[2]+1)))

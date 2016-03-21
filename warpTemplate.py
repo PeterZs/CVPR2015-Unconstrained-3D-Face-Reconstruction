@@ -113,7 +113,10 @@ def drawL(imgPath, landmark):
 
 #3p vector turn to obj file
 
-
+def projectL(P, landmark3D):
+    lm = np.c_[landmark3D, np.ones((83, 1))]
+    return P.dot(lm.T).T[:,0:2]    
+    
 #load landmark index    
 def loadLandmark(fp):
     text = open(fp, 'r')    
@@ -123,7 +126,6 @@ def loadLandmark(fp):
         landmarkIndex.append(int(float(line))-1)
     return landmarkIndex
     
-
    
 if __name__ == '__main__':
     rootDir = r'D:\WinPython-64bit-2.7.10.1\mine\Unconstrained 3D Face Reconstruction\data'
@@ -139,11 +141,13 @@ if __name__ == '__main__':
     X0 = vertex.reshape((3*vCount,1))#3p vector
     landmarkIndex = loadLandmark(landmarkPath)
     landmark3D = vertex[landmarkIndex]
-    D = np.zeros((3*vCount, 3*vCount))#selection matrix
+    #selection matrix
+    D = np.zeros((3*vCount, 3*vCount))
     for index in landmarkIndex:
         for i in range(3):
             D[3*index+i, 3*index+i] = 1
     D = csr_matrix(D)
+    #
     imgList = os.listdir(imgSet)
     Pset = []
     Wset = []
@@ -155,7 +159,7 @@ if __name__ == '__main__':
         Pplus = np.zeros((2*vCount, 3*vCount))
         count = 0
         for index in landmarkIndex:
-            Pplus[2*index:2*index+2, 2*index:2*index+3] = P[0:2,0:3]
+            Pplus[2*index:2*index+2, 3*index:3*index+3] = P[0:2,0:3]
             W[2*index] = landmark2D[count, 0] - P[0, 3]
             W[2*index+1] = landmark2D[count, 1] - P[1, 3]
             count = count + 1
@@ -163,9 +167,9 @@ if __name__ == '__main__':
         W = csr_matrix(W)
         Pset.append(Pplus)
         Wset.append(W)
+        
     sumL = L.dot(L)
     sumR = sumL.dot(X0)
-
     for i in range(len(Pset)):
         #sumL = sumL + D.dot(Pset[i].T).dot(Pset[i]).dot(D)
         tempL = Pset[i].dot(D)
