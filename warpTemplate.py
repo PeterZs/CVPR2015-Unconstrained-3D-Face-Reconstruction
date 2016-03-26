@@ -12,6 +12,7 @@ from PIL import Image,ImageDraw
 from OBJ import obj
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
+import time
 #face++ api
 from facepp import API,File
 API_KEY = "b068f469bf92bbf202a2a351093f81c3"
@@ -101,8 +102,8 @@ def calP(landmark2D, landmark3D):
 
 
 # draw landmark     
-def drawL(imgPath, landmark):
-    img = Image.open(imgPath)
+def drawL(img, landmark):
+    #img = Image.open(imgPath)
     imDraw = ImageDraw.Draw(img)
     radius = 10
     for p in landmark:
@@ -126,27 +127,12 @@ def loadLandmark(fp):
         landmarkIndex.append(int(float(line))-1)
     return landmarkIndex
     
-   
-if __name__ == '__main__':
-    rootDir = r'D:\WinPython-64bit-2.7.10.1\mine\Unconstrained 3D Face Reconstruction\data'
-    imgSet = os.path.join(rootDir, 'imgSet')
-    landmarkPath = os.path.join(rootDir, 'landmark.txt')
-    templatePath = os.path.join(rootDir, 'template.obj')
-    tempPath = os.path.join(rootDir, 'tempResult')
-    template = obj(templatePath)
-    template.load()
-    L = calL(template)
+def itera(template):
+    #L = calL(template)
     vertex = np.array(template.v)
-    vCount = len(vertex)
-    X0 = vertex.reshape((3*vCount,1))#3p vector
-    landmarkIndex = loadLandmark(landmarkPath)
+    
+    X = vertex.reshape((3*vCount,1))#3p vector
     landmark3D = vertex[landmarkIndex]
-    #selection matrix
-    D = np.zeros((3*vCount, 3*vCount))
-    for index in landmarkIndex:
-        for i in range(3):
-            D[3*index+i, 3*index+i] = 1
-    D = csr_matrix(D)
     #
     imgList = os.listdir(imgSet)
     Pset = []
@@ -169,13 +155,53 @@ if __name__ == '__main__':
         Wset.append(W)
         
     sumL = L.dot(L)
-    sumR = sumL.dot(X0)
+    sumR = sumL.dot(X)
+    costVal2 = 0
     for i in range(len(Pset)):
         #sumL = sumL + D.dot(Pset[i].T).dot(Pset[i]).dot(D)
         tempL = Pset[i].dot(D)
-        sumL = sumL + tempL.T.dot(tempL)
-        sumR = sumR + (Pset[i].T).dot(Wset[i])
-    XX = spsolve(sumL, sumR)
+        costVal2 = costVal2 + np.linalg.norm(tempL.dot(X) - Wset[i])
+        sumL = sumL + lamda * tempL.T.dot(tempL)
+        sumR = sumR + lamda * (Pset[i].T).dot(Wset[i])
+    costV2.append(costVal2)
+    newV = spsolve(sumL, sumR)
+    template.v = newV.reshape((len(newV)/3, 3))
+    return template
+    
+
+    
+if __name__ == '__main__':
+    time1 = time.time()
+    rootDir = r'D:\WinPython-64bit-2.7.10.1\mine\Unconstrained 3D Face Reconstruction\data'
+    imgSet = os.path.join(rootDir, 'imgSet')
+    landmarkPath = os.path.join(rootDir, 'landmark.txt')
+    templatePath = os.path.join(rootDir, 'template.obj')
+    tempPath = os.path.join(rootDir, 'tempResult')
+    landmarkIndex = loadLandmark(landmarkPath)
+    template = obj(templatePath)
+    template.load()
+    vCount = len(np.array(template.v))
+    X = np.array(template.v).reshape((3*vCount,1))
+    X0 = X[:]
+    L = calL(template)
+    L0 = L[:]
+    #selection matrix
+    D = np.zeros((3*vCount, 3*vCount))
+    for index in landmarkIndex:
+        for i in range(3):
+            D[3*index+i, 3*index+i] = 1
+    D = csr_matrix(D)
+    costV2 = []
+    costV1 = []
+    lamda = 100
+    for i in range(3):
+        template = itera(template)
+        L = calL(template)
+        X = np.array(template.v).reshape((3*vCount,1))
+        costV1.append(np.linalg.norm(L.dot(X) - L0.dot(X0)))
+        template.save(os.path.join(tempPath, 'iter{}.obj'.format(str(i))))
+        print time.time() - time1
+        time1 = time.time()
     
 
         
