@@ -85,6 +85,8 @@ def calL(obj):
 def calP(landmark2D, landmark3D):
     b1 = landmark2D[:,0]
     b2 = landmark2D[:,1]
+    #b1 = landmark2D[19:, 0]#without contour
+    #b2 = landmark2D[19:, 0]
     A = np.c_[landmark3D, np.ones((len(landmark3D), 1))]
     #import pdb
     #pdb.set_trace()
@@ -118,7 +120,8 @@ def projectL(P, landmark3D):
     lm = np.c_[landmark3D, np.ones((83, 1))]
     return P.dot(lm.T).T[:,0:2]    
     
-#load landmark index    
+#load landmark index
+'''    
 def loadLandmark(fp):
     text = open(fp, 'r')    
     landmarkIndex = []
@@ -126,6 +129,16 @@ def loadLandmark(fp):
         line = line.split()[0]
         landmarkIndex.append(int(float(line))-1)
     return landmarkIndex
+'''
+
+#load landmark index without contour
+def loadLandmark(fp):
+    text = open(fp, 'r')    
+    landmarkIndex = []
+    for line in text:
+        line = line.split()[0]
+        landmarkIndex.append(int(float(line))-1)
+    return landmarkIndex[19:]
     
 def itera(template):
     #L = calL(template)
@@ -139,7 +152,7 @@ def itera(template):
     Wset = []
     for im in imgList:
         imgPath = os.path.join(imgSet, im)
-        landmark2D = landmarkFromFacepp(imgPath)
+        landmark2D = landmarkFromFacepp(imgPath)[19:]
         P = calP(landmark2D, landmark3D)
         W = np.zeros((2*vCount,1))
         Pplus = np.zeros((2*vCount, 3*vCount))
@@ -193,8 +206,8 @@ if __name__ == '__main__':
     D = csr_matrix(D)
     costV2 = []
     costV1 = []
-    lamda = 100
-    for i in range(3):
+    lamda = 1
+    for i in range(5):
         template = itera(template)
         L = calL(template)
         X = np.array(template.v).reshape((3*vCount,1))
