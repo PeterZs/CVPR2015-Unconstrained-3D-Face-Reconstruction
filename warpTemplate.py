@@ -117,7 +117,7 @@ def drawL(img, landmark):
 #3p vector turn to obj file
 
 def projectL(P, landmark3D):
-    lm = np.c_[landmark3D, np.ones((83, 1))]
+    lm = np.c_[landmark3D, np.ones((len(landmark3D), 1))]
     return P.dot(lm.T).T[:,0:2]    
     
 #load landmark index
@@ -147,13 +147,15 @@ def itera(template):
     X = vertex.reshape((3*vCount,1))#3p vector
     landmark3D = vertex[landmarkIndex]
     #
-    imgList = os.listdir(imgSet)
+    imgList = os.listdir(imgSetDir)
     Pset = []
     Wset = []
+    pMatrix = []
     for im in imgList:
-        imgPath = os.path.join(imgSet, im)
+        imgPath = os.path.join(imgSetDir, im)
         landmark2D = landmarkFromFacepp(imgPath)[19:]
         P = calP(landmark2D, landmark3D)
+        pMatrix.append(P)
         W = np.zeros((2*vCount,1))
         Pplus = np.zeros((2*vCount, 3*vCount))
         count = 0
@@ -161,6 +163,8 @@ def itera(template):
             Pplus[2*index:2*index+2, 3*index:3*index+3] = P[0:2,0:3]
             W[2*index] = landmark2D[count, 0] - P[0, 3]
             W[2*index+1] = landmark2D[count, 1] - P[1, 3]
+            #W[2*index] = landmark2D[count, 0]
+            #W[2*index+1] = landmark2D[count, 1]
             count = count + 1
         Pplus = csr_matrix(Pplus)
         W = csr_matrix(W)
@@ -179,14 +183,15 @@ def itera(template):
     costV2.append(costVal2)
     newV = spsolve(sumL, sumR)
     template.v = newV.reshape((len(newV)/3, 3))
-    return template
+    return template, pMatrix
     
 
     
+#def main():
 if __name__ == '__main__':
     time1 = time.time()
     rootDir = r'D:\WinPython-64bit-2.7.10.1\mine\Unconstrained 3D Face Reconstruction\data'
-    imgSet = os.path.join(rootDir, 'imgSet')
+    imgSetDir = os.path.join(rootDir, 'imgSet')
     landmarkPath = os.path.join(rootDir, 'landmark.txt')
     templatePath = os.path.join(rootDir, 'template.obj')
     tempPath = os.path.join(rootDir, 'tempResult')
@@ -207,14 +212,16 @@ if __name__ == '__main__':
     costV2 = []
     costV1 = []
     lamda = 1
-    for i in range(5):
-        template = itera(template)
+    for i in range(3):
+        [template, pMatrix] = itera(template)
         L = calL(template)
         X = np.array(template.v).reshape((3*vCount,1))
         costV1.append(np.linalg.norm(L.dot(X) - L0.dot(X0)))
         template.save(os.path.join(tempPath, 'iter{}.obj'.format(str(i))))
         print time.time() - time1
         time1 = time.time()
+    
+#    return template, pMatrix
     
 
         
