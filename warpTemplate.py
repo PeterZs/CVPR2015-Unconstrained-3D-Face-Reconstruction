@@ -107,7 +107,7 @@ def calP(landmark2D, landmark3D):
 def drawL(img, landmark):
     #img = Image.open(imgPath)
     imDraw = ImageDraw.Draw(img)
-    radius = 10
+    radius = 20
     for p in landmark:
         x = p[0]
         y = p[1]
@@ -191,9 +191,9 @@ def itera(template):
 if __name__ == '__main__':
     time1 = time.time()
     rootDir = r'D:\WinPython-64bit-2.7.10.1\mine\Unconstrained 3D Face Reconstruction\data'
-    imgSetDir = os.path.join(rootDir, 'imgSet')
+    imgSetDir = os.path.join(rootDir, 'imgSet2')
     landmarkPath = os.path.join(rootDir, 'landmark.txt')
-    templatePath = os.path.join(rootDir, 'template.obj')
+    templatePath = os.path.join(rootDir, 'template2.obj')
     tempPath = os.path.join(rootDir, 'tempResult')
     landmarkIndex = loadLandmark(landmarkPath)
     template = obj(templatePath)
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     costV2 = []
     costV1 = []
     lamda = 1
-    for i in range(3):
+    for i in range(4):
         [template, pMatrix] = itera(template)
         L = calL(template)
         X = np.array(template.v).reshape((3*vCount,1))
@@ -220,6 +220,7 @@ if __name__ == '__main__':
         template.save(os.path.join(tempPath, 'iter{}.obj'.format(str(i))))
         print time.time() - time1
         time1 = time.time()
+    template.vnCal()
     
 #    return template, pMatrix
     
