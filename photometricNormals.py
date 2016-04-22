@@ -6,7 +6,9 @@ Created on Wed Apr 06 16:26:08 2016
 """
 import numpy as np
 import os
-from PIL import Image
+from PIL import Image,ImageDraw
+
+demoImagePath = r'D:\WinPython-64bit-2.7.10.1\mine\Unconstrained 3D Face Reconstruction\data\imgSet2\_Canon EOS 700D (294075042050)_11244.jpg'
 
 def getM(template, pSet, imgSetDir):
     M = []
@@ -30,10 +32,11 @@ def computeSt(template, M):
     while 1:
         L = (M/rho).dot(np.linalg.pinv(n))
         Ln = np.dot(L, n)
-        newCostVal = np.linalg.norm(Ln - M/rho)
+        newCostVal = np.linalg.norm(Ln * rho - M)
         if abs(costVal - newCostVal) < 0.1:
             break
         costVal = newCostVal
+        print costVal
         rhoVal = M/Ln
         meanRho = np.mean(rhoVal, axis = 0)
         meanRho = meanRho.reshape(vNum, 1)
@@ -57,10 +60,47 @@ def getNorm(refineS, rho):
     tempN = refineS/rho[:4,:]
     return tempN[1:].T
 
+def drawL(img, landmark):
+    #img = Image.open(imgPath)
+    imDraw = ImageDraw.Draw(img)
+    radius = 10
+    for p in landmark:
+        x = p[0]
+        y = p[1]
+        imDraw.ellipse((x - radius,y -radius,x + radius, y + radius), fill = 'red', outline = 'red')
+    return img
+
+#3p vector turn to obj file
+
+def projectL(P, landmark3D):
+    lm = np.c_[landmark3D, np.ones((len(landmark3D), 1))]
+    return P.dot(lm.T).T[:,0:2] 
+    
+def drawAlbedo(P, vertex3D, rho, imgShape):
+    radius1 = 20
+    #radius2 = 19
+    rhoN = rho/rho.max()
+    im = np.ones(imgShape)*255
+    img = Image.fromarray(im)
+    imDraw = ImageDraw.Draw(img)
+    point2D = projectL(P, vertex3D)
+    point2D = map(tuple, point2D.astype('int'))
+    for ((p1,p2),r) in zip(point2D, rhoN):
+        imDraw.ellipse((p1 - radius1,p2 -radius1,p1 + radius1, p2 + radius1), fill = r*255, outline = r*255)
+        #imDraw.ellipse((p1 - radius2,p2 -radius2,p1 + radius2, p2 + radius2), outline = r*255)
+    #im.astype('uint8')
+    return img
+    
+
+
 if __name__ == '__main__':
+    demoImg = Image.open(demoImagePath)
+    imgShape = (demoImg.size[1],demoImg.size[0])
     pSet = pMatrix
     M = getM(template, pSet, imgSetDir)
     [St, rho] = computeSt(template, M)
+    imgAlbedo = drawAlbedo(pSet[3], template.v, rho[0,:], imgShape)
+    imgAlbedo.show()
     refineS = normalRefine(M, St)
     Norm = getNorm(refineS, rho)
     
